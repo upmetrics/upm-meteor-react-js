@@ -72,3 +72,13 @@ const [data, loading] = Meteor.usePublication({
 ```javascript
 const { result, loading } = Meteor.useMethod('method.name', { id: _id });
 ```
+
+
+
+npm run prepare
+
+npx rimraf dist
+
+npx babel src --out-dir dist
+
+npx copyfiles src/index.d.ts dist --up 1
