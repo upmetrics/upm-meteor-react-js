@@ -30,24 +30,24 @@ let MyCol = new Meteor.Mongo.Collection('mycol');
 Meteor.connect('wss://myapp.meteor.com/websocket');
 
 class App extends React.Component {
-    render() {
-        let {myThing} = this.props;
+  render() {
+    let { myThing } = this.props;
 
-        return (
-            <div>
-                <span>Here is the thing: {myThing.name}</span>
-            </div>
-        );
-    }
+    return (
+      <div>
+        <span>Here is the thing: {myThing.name}</span>
+      </div>
+    );
+  }
 }
 
 let AppContainer = Meteor.withTracker(() => {
-    Meteor.subscribe('myThing');
-    let myThing = MyCol.findOne();
+  Meteor.subscribe('myThing');
+  let myThing = MyCol.findOne();
 
-    return {
-        myThing,
-    };
+  return {
+    myThing,
+  };
 })(App);
 
 export default AppContainer;
@@ -61,14 +61,14 @@ There are also custom hooks for managing subscriptions and calling Meteor method
 
 ```javascript
 const [data, loading] = Meteor.usePublication({
-    name: 'publication.name',
-    params: {id: _id},
-    fetch: () => MyCol.findOne({_id: id}),
+  name: 'publication.name',
+  params: { id: _id },
+  fetch: () => MyCol.findOne({ _id: id }),
 });
 ```
 
 ### Meteor.useMethod
 
 ```javascript
-const {result, loading} = Meteor.useMethod('method.name', {id: _id});
+const { result, loading } = Meteor.useMethod('method.name', { id: _id });
 ```
