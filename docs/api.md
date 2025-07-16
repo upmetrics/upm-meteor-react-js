@@ -15,12 +15,15 @@ Table of Contents
 
 Connect to the Meteor Server
 
-**url**: The URL of your Meteor Server websocket. This should typically start with `ws://` (insecure, like `http://`) or `wss://` (secure, like `https://`), and have the path `/websocket`, e.g.: `wss://myapp.meteor.com/websocket`
+**url**: The URL of your Meteor Server websocket. This should typically start with `ws://` (insecure, like `http://`) or
+`wss://` (secure, like `https://`), and have the path `/websocket`, e.g.: `wss://myapp.meteor.com/websocket`
 
 **options**:
 
-- autoConnect **boolean** [true] whether to establish the connection to the server upon instantiation. When false, one can manually establish the connection with the Meteor.ddp.connect method.
-- autoReconnect **boolean** [true] whether to try to reconnect to the server when the socket connection closes, unless the closing was initiated by a call to the disconnect method.
+- autoConnect **boolean** [true] whether to establish the connection to the server upon instantiation. When false, one
+  can manually establish the connection with the Meteor.ddp.connect method.
+- autoReconnect **boolean** [true] whether to try to reconnect to the server when the socket connection closes, unless
+  the closing was initiated by a call to the disconnect method.
 - reconnectInterval **number** [10000] the interval in ms between reconnection attempts.
 
 ### `Meteor.disconnect()`
@@ -73,7 +76,8 @@ Creates a new Tracker
 
 **Arguments:**
 
-- trackerFunc - Function which will be re-run reactively when it's dependencies are updated. Must return an object that is passed as properties to `Component`
+- trackerFunc - Function which will be re-run reactively when it's dependencies are updated. Must return an object that
+  is passed as properties to `Component`
 - Component - React Component which will receive properties from trackerFunc
 
 #### `Meteor.useTracker(trackerFunc)` => `React Hook`
@@ -149,7 +153,8 @@ Registers a callback to be called when login fails
 
 #### `Meteor.Accounts._hashPassword(plaintext)` => `{algorithm:"sha-256", digest:"..."}`
 
-Hashes a password using the sha-256 algorithm. Returns an object formatted for use in accounts calls. You can access the raw hashed string using the digest property.
+Hashes a password using the sha-256 algorithm. Returns an object formatted for use in accounts calls. You can access the
+raw hashed string using the digest property.
 
 **Arguments**
 
