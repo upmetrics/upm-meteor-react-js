@@ -43,11 +43,6 @@ const User = {
     localStorage.removeItem(TOKEN_KEY);
     Data._tokenIdSaved = null;
     User._userIdSaved = null;
-    
-    // Reset authentication flag
-    if (Data.ddp) {
-      Data.ddp.authEstablished = false;
-    }
   },
   loginWithPassword(selector, password, callback) {
     if (typeof selector === 'string') {
@@ -111,12 +106,6 @@ const User = {
       localStorage.setItem(TOKEN_KEY, result.token);
       Data._tokenIdSaved = result.token;
       User._userIdSaved = result.id;
-      
-      // Mark authentication as established
-      if (Data.ddp) {
-        Data.ddp.authEstablished = true;
-      }
-      
       Data.notify('onLogin');
     } else {
       Meteor.isVerbose() && info('User._handleLoginCallback::: error:', err);
@@ -125,7 +114,7 @@ const User = {
     }
     Data.notify('change');
   },
-    _loginWithToken(value) {
+  _loginWithToken(value) {
     Data._tokenIdSaved = value;
     if (value !== null) {
       Meteor.isVerbose() && info('User._loginWithToken::: token:', value);

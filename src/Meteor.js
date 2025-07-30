@@ -67,41 +67,9 @@ export const Meteor = {
     }
   },
   _subscriptionsRestart() {
-    // Check if authentication is established before restarting subscriptions
-    const token = Data._tokenIdSaved;
-    if (token && Data.ddp && !Data.ddp.authEstablished) {
-      // Establish authentication first, then restart subscriptions
-      if (isVerbose) {
-        info('Establishing authentication before restarting subscriptions');
-      }
-      
-      const loginId = Data.ddp.method('login', [{ resume: token }]);
-      Data.calls.push({ 
-        id: loginId, 
-        callback: (loginError, loginResult) => {
-          if (!loginError && loginResult) {
-            // Mark auth as established and restart subscriptions
-            Data.ddp.authEstablished = true;
-            this._doSubscriptionsRestart();
-          } else {
-            if (isVerbose) {
-              info('Authentication failed during subscription restart');
-            }
-          }
-        }
-      });
-      return;
-    }
-    
-    this._doSubscriptionsRestart();
-  },
-  
-  _doSubscriptionsRestart() {
     for (const i of Object.keys(Data.subscriptions)) {
       const sub = Data.subscriptions[i];
-      if (sub.subIdRemember) {
-        Data.ddp.unsub(sub.subIdRemember);
-      }
+      Data.ddp.unsub(sub.subIdRemember);
       sub.subIdRemember = Data.ddp.sub(sub.name, sub.params);
     }
   },
@@ -154,13 +122,8 @@ export const Meteor = {
       if (isVerbose) {
         info(`Connected to DDP server ${endpoint}`);
       }
-
-      // Load initial user first, then restart subscriptions
       this._loadInitialUser().then(() => {
-        // Wait longer to ensure authentication is properly processed
-        setTimeout(() => {
-          this._subscriptionsRestart();
-        }, 200);
+        this._subscriptionsRestart();
       });
     });
 
@@ -268,13 +231,13 @@ export const Meteor = {
       if (isVerbose) {
         info(`Method result for id=${message.id}`);
       }
-      if (c && typeof c.callback === 'function') {
+      if (typeof c.callback === 'function') {
         c.callback(message.error, message.result);
       }
-      const callIndex = Data.calls.findIndex((x) => x.id === message.id);
-      if (callIndex !== -1) {
-        Data.calls.splice(callIndex, 1);
-      }
+      Data.calls.splice(
+        Data.calls.findIndex((x) => x.id === message.id),
+        1
+      );
     });
 
     Data.ddp.on('nosub', (message) => {
@@ -282,39 +245,6 @@ export const Meteor = {
         const sub = Data.subscriptions[i];
         if (sub.subIdRemember === message.id) {
           if (message.error) {
-            // Check if this is an access denied error
-            if (message.error.error === '403' && message.error.reason === 'Access denied.') {
-              const token = Data._tokenIdSaved;
-              if (token) {
-                if (isVerbose) {
-                  warn('Subscription access denied, attempting re-authentication for', sub.name);
-                }
-                // Reset auth flag and try to re-establish authentication
-                Data.ddp.authEstablished = false;
-                const loginId = Data.ddp.method('login', [{ resume: token }]);
-                Data.calls.push({ 
-                  id: loginId, 
-                  callback: (loginError, loginResult) => {
-                    if (!loginError && loginResult) {
-                      // Mark auth as established and retry subscription
-                      Data.ddp.authEstablished = true;
-                      sub.subIdRemember = Data.ddp.sub(sub.name, sub.params);
-                      if (isVerbose) {
-                        info(`Retrying subscription ${debugSub(sub.name, sub.params)} after re-auth`);
-                      }
-                    } else {
-                      // Authentication failed, mark subscription as error
-                      sub.error = message.error;
-                      sub.ready = true;
-                      sub.readyDeps.changed();
-                      sub.readyCallback && sub.readyCallback();
-                    }
-                  }
-                });
-                return;
-              }
-            }
-            
             sub.error = message.error;
             sub.ready = true;
             sub.readyDeps.changed();
@@ -397,101 +327,33 @@ export const Meteor = {
       // New sub! Generate an id, save it locally, and send message.
 
       id = Random.id();
-      
-      // Check if authentication is established before creating subscription
-      const token = Data._tokenIdSaved;
-      if (token && Data.ddp && !Data.ddp.authEstablished) {
-        // If we have a token but auth isn't established, establish it first
-        if (isVerbose) {
-          info(`Establishing authentication before subscription ${debugSub(name, params)}`);
-        }
-        
-        // Create a temporary subscription entry
-        Data.subscriptions[id] = {
-          id,
-          subIdRemember: null,
-          name,
-          params: EJSON.clone(params),
-          inactive: false,
-          ready: false,
-          readyDeps: new Tracker.Dependency(),
-          readyCallback: callbacks.onReady,
-          stopCallback: callbacks.onStop,
-          error: null,
-          stop() {
-            if (this.subIdRemember) {
-              Data.ddp.unsub(this.subIdRemember);
-            }
-            delete Data.subscriptions[this.id];
-            this.ready && this.readyDeps.changed();
-            if (isVerbose) {
-              info(`Stopping ${debugSub(name, params)}  subId=${this.id}, sub=${this.subIdRemember}`);
-            }
-            if (callbacks.onStop) {
-              callbacks.onStop();
-            }
-          },
-        };
-        
-        // Establish authentication first
-        const loginId = Data.ddp.method('login', [{ resume: token }]);
-        Data.calls.push({ 
-          id: loginId, 
-          callback: (loginError, loginResult) => {
-            if (!loginError && loginResult) {
-              // Mark auth as established and create the subscription
-              Data.ddp.authEstablished = true;
-              const subIdRemember = Data.ddp.sub(name, params);
-              if (isVerbose) {
-                info(`Subscribe to ${debugSub(name, params)} subId=${id}, sub=${subIdRemember} (after auth)`);
-              }
-              // Update the subscription with the actual sub ID
-              if (Data.subscriptions[id]) {
-                Data.subscriptions[id].subIdRemember = subIdRemember;
-              }
-            } else {
-              // Authentication failed, mark subscription as error
-              if (Data.subscriptions[id]) {
-                Data.subscriptions[id].error = loginError || new Error('Authentication failed');
-                Data.subscriptions[id].ready = true;
-                Data.subscriptions[id].readyDeps.changed();
-                if (Data.subscriptions[id].readyCallback) {
-                  Data.subscriptions[id].readyCallback();
-                }
-              }
-            }
-          }
-        });
-      } else {
-        // Authentication already established or no token, proceed normally
-        const subIdRemember = Data.ddp.sub(name, params);
-        if (isVerbose) {
-          info(`Subscribe to ${debugSub(name, params)} subId=${id}, sub=${subIdRemember}`);
-        }
-        Data.subscriptions[id] = {
-          id,
-          subIdRemember,
-          name,
-          params: EJSON.clone(params),
-          inactive: false,
-          ready: false,
-          readyDeps: new Tracker.Dependency(),
-          readyCallback: callbacks.onReady,
-          stopCallback: callbacks.onStop,
-          error: null,
-          stop() {
-            Data.ddp.unsub(this.subIdRemember);
-            delete Data.subscriptions[this.id];
-            this.ready && this.readyDeps.changed();
-            if (isVerbose) {
-              info(`Stopping ${debugSub(name, params)}  subId=${this.id}, sub=${this.subIdRemember}`);
-            }
-            if (callbacks.onStop) {
-              callbacks.onStop();
-            }
-          },
-        };
+      const subIdRemember = Data.ddp.sub(name, params);
+      if (isVerbose) {
+        info(`Subscribe to ${debugSub(name, params)} subId=${id}, sub=${subIdRemember}`);
       }
+      Data.subscriptions[id] = {
+        id,
+        subIdRemember,
+        name,
+        params: EJSON.clone(params),
+        inactive: false,
+        ready: false,
+        readyDeps: new Tracker.Dependency(),
+        readyCallback: callbacks.onReady,
+        stopCallback: callbacks.onStop,
+        error: null,
+        stop() {
+          Data.ddp.unsub(this.subIdRemember);
+          delete Data.subscriptions[this.id];
+          this.ready && this.readyDeps.changed();
+          if (isVerbose) {
+            info(`Stopping ${debugSub(name, params)}  subId=${this.id}, sub=${this.subIdRemember}`);
+          }
+          if (callbacks.onStop) {
+            callbacks.onStop();
+          }
+        },
+      };
     }
 
     // return a handle to the application.

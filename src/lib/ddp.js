@@ -7,15 +7,6 @@ import Queue from './queue';
 import Socket from './socket';
 import { uniqueId } from './utils';
 
-// Helper function to get auth token
-function getAuthToken() {
-  // Try to get from localStorage for cross-compatibility
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return window.localStorage.getItem('Meteor.loginToken');
-  }
-  return null;
-}
-
 const DDP_VERSION = '1';
 const PUBLIC_EVENTS = [
   // Subscription messages
@@ -41,8 +32,6 @@ export default class DDP extends EventEmitter {
     super();
 
     this.status = 'disconnected';
-    this.sessionId = null; // Track session ID
-    this.authEstablished = false; // Track if authentication has been attempted
 
     // Default `autoConnect` and `autoReconnect` to true
     this.autoConnect = options.autoConnect !== false;
@@ -62,19 +51,11 @@ export default class DDP extends EventEmitter {
     this.socket.on('open', () => {
       // When the socket opens, send the `connect` message
       // to establish the DDP connection
-      const connectMessage = {
+      this.socket.send({
         msg: 'connect',
         version: DDP_VERSION,
         support: [DDP_VERSION],
-      };
-
-      // Add resume token if available for server-side authentication
-      const token = getAuthToken();
-      if (token) {
-        connectMessage.session = token;
-      }
-
-      this.socket.send(connectMessage);
+      });
     });
 
     this.socket.on('close', () => {
@@ -90,22 +71,8 @@ export default class DDP extends EventEmitter {
     this.socket.on('message:in', (message) => {
       if (message.msg === 'connected') {
         this.status = 'connected';
-        this.sessionId = message.session; // Store session ID
-        
-        // Immediately attempt to establish authentication if we have a token
-        const token = getAuthToken();
-        if (token && !this.authEstablished) {
-          // Send a login method call to establish authentication
-          const loginId = this.method('login', [{ resume: token }]);
-          // Don't emit connected until after authentication attempt
-          setTimeout(() => {
-            this.messageQueue.process();
-            this.emit('connected');
-          }, 50);
-        } else {
-          this.messageQueue.process();
-          this.emit('connected');
-        }
+        this.messageQueue.process();
+        this.emit('connected');
       } else if (message.msg === 'ping') {
         // Reply with a `pong` message to prevent the server from
         // closing the connection
