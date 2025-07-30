@@ -122,6 +122,19 @@ const User = {
       Meteor.call('login', { resume: value }, (err, result) => {
         User._endLoggingIn();
         User._handleLoginCallback(err, result);
+
+        // If login was successful, ensure session is established
+        if (!err && result) {
+          // Call a simple method to ensure server recognizes the session
+          setTimeout(() => {
+            Meteor.call('meteor_autoupdate_clientVersions', () => {
+              // This call helps establish the user session on server side
+              if (Meteor.isVerbose()) {
+                info('Session validation call completed');
+              }
+            });
+          }, 100);
+        }
       });
     } else {
       Meteor.isVerbose() && info('User._loginWithToken::: token is null');

@@ -7,6 +7,15 @@ import Queue from './queue';
 import Socket from './socket';
 import { uniqueId } from './utils';
 
+// Helper function to get auth token
+function getAuthToken() {
+  // Try to get from localStorage for cross-compatibility
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return window.localStorage.getItem('Meteor.loginToken');
+  }
+  return null;
+}
+
 const DDP_VERSION = '1';
 const PUBLIC_EVENTS = [
   // Subscription messages
@@ -32,6 +41,7 @@ export default class DDP extends EventEmitter {
     super();
 
     this.status = 'disconnected';
+    this.sessionId = null; // Track session ID
 
     // Default `autoConnect` and `autoReconnect` to true
     this.autoConnect = options.autoConnect !== false;
@@ -51,11 +61,19 @@ export default class DDP extends EventEmitter {
     this.socket.on('open', () => {
       // When the socket opens, send the `connect` message
       // to establish the DDP connection
-      this.socket.send({
+      const connectMessage = {
         msg: 'connect',
         version: DDP_VERSION,
         support: [DDP_VERSION],
-      });
+      };
+
+      // Add resume token if available for server-side authentication
+      const token = getAuthToken();
+      if (token) {
+        connectMessage.session = token;
+      }
+
+      this.socket.send(connectMessage);
     });
 
     this.socket.on('close', () => {
@@ -71,6 +89,7 @@ export default class DDP extends EventEmitter {
     this.socket.on('message:in', (message) => {
       if (message.msg === 'connected') {
         this.status = 'connected';
+        this.sessionId = message.session; // Store session ID
         this.messageQueue.process();
         this.emit('connected');
       } else if (message.msg === 'ping') {

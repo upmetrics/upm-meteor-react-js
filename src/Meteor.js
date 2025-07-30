@@ -122,8 +122,13 @@ export const Meteor = {
       if (isVerbose) {
         info(`Connected to DDP server ${endpoint}`);
       }
+
+      // Load initial user first, then restart subscriptions
       this._loadInitialUser().then(() => {
-        this._subscriptionsRestart();
+        // Small delay to ensure authentication is processed
+        setTimeout(() => {
+          this._subscriptionsRestart();
+        }, 50);
       });
     });
 
