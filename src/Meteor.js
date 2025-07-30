@@ -67,6 +67,19 @@ export const Meteor = {
     }
   },
   _subscriptionsRestart() {
+    // Check if authentication is established before restarting subscriptions
+    const token = Data._tokenIdSaved;
+    if (token && Data.ddp && !Data.ddp.authEstablished) {
+      // Delay subscription restart until authentication is established
+      if (isVerbose) {
+        info('Delaying subscription restart until authentication is established');
+      }
+      setTimeout(() => {
+        this._subscriptionsRestart();
+      }, 100);
+      return;
+    }
+    
     for (const i of Object.keys(Data.subscriptions)) {
       const sub = Data.subscriptions[i];
       Data.ddp.unsub(sub.subIdRemember);

@@ -42,6 +42,7 @@ export default class DDP extends EventEmitter {
 
     this.status = 'disconnected';
     this.sessionId = null; // Track session ID
+    this.authEstablished = false; // Track if authentication has been attempted
 
     // Default `autoConnect` and `autoReconnect` to true
     this.autoConnect = options.autoConnect !== false;
@@ -90,8 +91,22 @@ export default class DDP extends EventEmitter {
       if (message.msg === 'connected') {
         this.status = 'connected';
         this.sessionId = message.session; // Store session ID
-        this.messageQueue.process();
-        this.emit('connected');
+        
+        // Immediately attempt to establish authentication if we have a token
+        const token = getAuthToken();
+        if (token && !this.authEstablished) {
+          this.authEstablished = true;
+          // Send a login method call to establish authentication
+          const loginId = this.method('login', [{ resume: token }]);
+          // Don't emit connected until after authentication attempt
+          setTimeout(() => {
+            this.messageQueue.process();
+            this.emit('connected');
+          }, 50);
+        } else {
+          this.messageQueue.process();
+          this.emit('connected');
+        }
       } else if (message.msg === 'ping') {
         // Reply with a `pong` message to prevent the server from
         // closing the connection

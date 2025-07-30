@@ -43,6 +43,11 @@ const User = {
     localStorage.removeItem(TOKEN_KEY);
     Data._tokenIdSaved = null;
     User._userIdSaved = null;
+    
+    // Reset authentication flag
+    if (Data.ddp) {
+      Data.ddp.authEstablished = false;
+    }
   },
   loginWithPassword(selector, password, callback) {
     if (typeof selector === 'string') {
@@ -106,6 +111,12 @@ const User = {
       localStorage.setItem(TOKEN_KEY, result.token);
       Data._tokenIdSaved = result.token;
       User._userIdSaved = result.id;
+      
+      // Mark authentication as established
+      if (Data.ddp) {
+        Data.ddp.authEstablished = true;
+      }
+      
       Data.notify('onLogin');
     } else {
       Meteor.isVerbose() && info('User._handleLoginCallback::: error:', err);
@@ -114,7 +125,7 @@ const User = {
     }
     Data.notify('change');
   },
-  _loginWithToken(value) {
+    _loginWithToken(value) {
     Data._tokenIdSaved = value;
     if (value !== null) {
       Meteor.isVerbose() && info('User._loginWithToken::: token:', value);
@@ -122,19 +133,6 @@ const User = {
       Meteor.call('login', { resume: value }, (err, result) => {
         User._endLoggingIn();
         User._handleLoginCallback(err, result);
-
-        // If login was successful, ensure session is established
-        if (!err && result) {
-          // Call a simple method to ensure server recognizes the session
-          setTimeout(() => {
-            Meteor.call('meteor_autoupdate_clientVersions', () => {
-              // This call helps establish the user session on server side
-              if (Meteor.isVerbose()) {
-                info('Session validation call completed');
-              }
-            });
-          }, 100);
-        }
       });
     } else {
       Meteor.isVerbose() && info('User._loginWithToken::: token is null');
