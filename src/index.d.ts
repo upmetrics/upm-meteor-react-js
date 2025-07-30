@@ -55,6 +55,8 @@ export interface ICollection {
   ): void;
 
   remove(selector: any, callback?: () => any): void;
+
+  testAvailableMethods(callback?: (availableMethods: string[]) => void): void;
 }
 
 export interface IData {

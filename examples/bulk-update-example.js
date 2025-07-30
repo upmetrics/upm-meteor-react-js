@@ -1,4 +1,5 @@
 // Example: How to refactor your React + Meteor code to use bulk operations
+// Now with automatic fallback when server methods are not available
 
 import Meteor from '@nyby/meteor-react-js';
 
@@ -20,7 +21,7 @@ const saveAiPreferences = async (data) => {
 
         if (data.applyToAllWorkspaces) {
           // SOLUTION 1: Using updateMany (recommended for your use case)
-          // This updates all matching documents in a single server call
+          // This will automatically fallback to individual updates if server method is not found
           BusinessSettingsCollection.updateMany(
             { _id: { $in: existingWorkspaces.map((w) => w._id) } }, // selector for multiple IDs
             { $set: { 'ai.hideAI': data.hideAI } }, // modifier
@@ -30,6 +31,12 @@ const saveAiPreferences = async (data) => {
                 notificationsService.error('Failed to update workspace settings');
               } else {
                 console.log(`Updated ${result.modifiedCount} workspaces`);
+                if (result.errors && result.errors.length > 0) {
+                  console.warn('Some updates failed:', result.errors);
+                  notificationsService.warning(`Updated ${result.modifiedCount} workspaces, ${result.errors.length} failed`);
+                } else {
+                  notificationsService.success(`Successfully updated ${result.modifiedCount} workspaces`);
+                }
               }
             }
           );
@@ -47,6 +54,14 @@ const saveAiPreferences = async (data) => {
                 notificationsService.error('Failed to update workspace settings');
             } else {
                 console.log('Bulk update completed:', results);
+                const successCount = results.filter(r => r.success).length;
+                const failCount = results.filter(r => !r.success).length;
+                
+                if (failCount > 0) {
+                    notificationsService.warning(`Updated ${successCount} workspaces, ${failCount} failed`);
+                } else {
+                    notificationsService.success(`Successfully updated ${successCount} workspaces`);
+                }
             }
         });
         */

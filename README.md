@@ -76,22 +76,26 @@ const { result, loading } = Meteor.useMethod('method.name', { id: _id });
 ## Bulk Operations
 
 For scenarios where you need to update multiple documents without subscribing to each one individually, the package now
-supports bulk operations:
+supports bulk operations with automatic fallback:
 
 ### Collection.updateMany
 
-Updates multiple documents matching a selector without requiring local subscriptions:
+Updates multiple documents matching a selector without requiring local subscriptions. If the server method is not available, it automatically falls back to individual updates:
 
 ```javascript
 // Update multiple documents by selector
 BusinessSettingsCollection.updateMany(
-  { workspaceId: { $in: workspaceIds } }, // selector
+  { _id: { $in: workspaceIds } }, // selector  
   { $set: { 'ai.hideAI': true } }, // modifier
   (err, result) => {
     if (err) {
       console.error('Update failed:', err);
     } else {
       console.log(`Updated ${result.modifiedCount} documents`);
+      // Check for fallback warnings
+      if (result.errors) {
+        console.warn('Some updates failed:', result.errors);
+      }
     }
   }
 );
@@ -99,7 +103,7 @@ BusinessSettingsCollection.updateMany(
 
 ### Collection.bulkUpdate
 
-Performs multiple different update operations in a single call:
+Performs multiple different update operations in a single call with automatic fallback:
 
 ```javascript
 // Prepare array of update operations
@@ -114,9 +118,23 @@ BusinessSettingsCollection.bulkUpdate(updates, (err, results) => {
     console.error('Bulk update failed:', err);
   } else {
     console.log('Bulk update completed:', results);
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+    console.log(`${successCount} successful, ${failCount} failed`);
   }
 });
 ```
+
+### Automatic Fallback
+
+Both methods automatically detect when the corresponding server methods (`/collectionName/updateMany` and `/collectionName/bulkUpdate`) are not available and fall back to using individual `update()` calls. This means:
+
+- ✅ Works immediately without requiring server-side changes
+- ✅ Optimal performance when server methods are implemented  
+- ✅ Graceful degradation when server methods are missing
+- ⚠️ Fallback only supports `_id` selectors for `updateMany`
+
+**Note**: For best performance, implement the corresponding server methods as shown in `examples/server-methods.js`.
 
 npm run prepare
 

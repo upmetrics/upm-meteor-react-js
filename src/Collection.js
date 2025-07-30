@@ -162,27 +162,74 @@ export class Collection {
       callback = options;
     }
 
-    if (!this._collection.get(id)) {
-      return callback({
-        error: 409,
-        reason: `Item not found in collection ${this._name} with id ${id}`,
-      });
-    }
+    // Don't require local document to exist for updates
+    // This makes it work more like standard Meteor behavior
+    const existingDoc = this._collection.get(id);
 
-    // change mini mongo for optimize UI changes
-    this._collection.upsert({ _id: id, ...modifier.$set });
+    // Optimistically update local collection if document exists
+    if (existingDoc && modifier.$set) {
+      this._collection.upsert({ _id: id, ...modifier.$set });
+    }
 
     if (!this.localCollection) {
       Data.waitDdpConnected(() => {
+        // Try the standard Meteor collection update pattern first
         call(`/${this._name}/update`, { _id: id }, modifier, (err) => {
-          if (err) {
+          if (err && err.error === 404 && err.reason && err.reason.includes('not found')) {
+            // Fallback: Try alternative method patterns that might exist on your server
+            this._tryAlternativeUpdateMethods(id, modifier, callback);
+          } else if (err) {
+            // Rollback optimistic update on error
+            if (existingDoc && modifier.$set) {
+              this._collection.upsert(existingDoc);
+            }
             return callback(err);
+          } else {
+            callback(null, id);
           }
-
-          callback(null, id);
         });
       });
     }
+  }
+
+  _tryAlternativeUpdateMethods(id, modifier, callback) {
+    console.log(`Trying alternative update methods for ${this._name}`);
+
+    // Try common Meteor method patterns
+    const alternatives = [
+      `${this._name}.update`,
+      `update${this._name}`,
+      `/${this._name}/modify`,
+      `/modify/${this._name}`,
+    ];
+
+    let attempted = 0;
+
+    const tryNext = () => {
+      if (attempted >= alternatives.length) {
+        return callback({
+          error: 404,
+          reason: `No update method found for collection ${this._name}. Tried: ${alternatives.join(', ')}`,
+        });
+      }
+
+      const methodName = alternatives[attempted++];
+      console.log(`Trying method: ${methodName}`);
+
+      call(methodName, { _id: id }, modifier, (err) => {
+        if (err && err.error === 404) {
+          // Try next alternative
+          tryNext();
+        } else if (err) {
+          return callback(err);
+        } else {
+          console.log(`Success with method: ${methodName}`);
+          callback(null, id);
+        }
+      });
+    };
+
+    tryNext();
   }
 
   bulkUpdate(updates, options = {}, callback = () => {}) {
@@ -212,7 +259,11 @@ export class Collection {
     if (!this.localCollection) {
       Data.waitDdpConnected(() => {
         call(`/${this._name}/bulkUpdate`, updates, (err, result) => {
-          if (err) {
+          if (err && err.error === 404 && err.reason && err.reason.includes('not found')) {
+            // Fallback: Method not found, try using individual updates
+            console.warn(`Method /${this._name}/bulkUpdate not found, falling back to individual updates`);
+            this._fallbackBulkUpdate(updates, callback);
+          } else if (err) {
             // Rollback optimistic updates on error
             updates.forEach(({ selector, modifier }) => {
               if (selector._id) {
@@ -221,9 +272,9 @@ export class Collection {
               }
             });
             return callback(err);
+          } else {
+            callback(null, result);
           }
-
-          callback(null, result);
         });
       });
     } else {
@@ -252,11 +303,15 @@ export class Collection {
     if (!this.localCollection) {
       Data.waitDdpConnected(() => {
         call(`/${this._name}/updateMany`, selector, modifier, (err, result) => {
-          if (err) {
+          if (err && err.error === 404 && err.reason && err.reason.includes('not found')) {
+            // Fallback: Method not found, try using individual updates
+            console.warn(`Method /${this._name}/updateMany not found, falling back to individual updates`);
+            this._fallbackUpdateMany(selector, modifier, callback);
+          } else if (err) {
             return callback(err);
+          } else {
+            callback(null, result);
           }
-
-          callback(null, result);
         });
       });
     } else {
@@ -272,6 +327,103 @@ export class Collection {
       });
 
       callback(null, { modifiedCount: updated.length, matchedCount: docs.length });
+    }
+  }
+
+  _fallbackBulkUpdate(updates, callback) {
+    // Fallback implementation using individual updates
+    console.log('Using fallback bulkUpdate implementation');
+
+    let completed = 0;
+    const results = [];
+
+    updates.forEach((update, index) => {
+      const { selector, modifier } = update;
+
+      if (selector._id) {
+        this.update(selector._id, modifier, (err) => {
+          completed++;
+
+          if (err) {
+            results[index] = {
+              index,
+              selector,
+              success: false,
+              error: err.reason || err.message || 'Update failed',
+            };
+          } else {
+            results[index] = {
+              index,
+              selector,
+              success: true,
+              modifiedCount: 1,
+            };
+          }
+
+          if (completed === updates.length) {
+            callback(null, results);
+          }
+        });
+      } else {
+        completed++;
+        results[index] = {
+          index,
+          selector,
+          success: false,
+          error: 'Fallback bulkUpdate only supports _id selectors',
+        };
+
+        if (completed === updates.length) {
+          callback(null, results);
+        }
+      }
+    });
+
+    // Handle empty updates array
+    if (updates.length === 0) {
+      callback(null, []);
+    }
+  }
+
+  _fallbackUpdateMany(selector, modifier, callback) {
+    // Fallback implementation using individual updates
+    console.log('Using fallback updateMany implementation');
+
+    // If selector has $in with _id, use those IDs directly
+    if (selector._id && selector._id.$in && Array.isArray(selector._id.$in)) {
+      const ids = selector._id.$in;
+      let completed = 0;
+      let modifiedCount = 0;
+      const errors = [];
+
+      ids.forEach((id) => {
+        this.update(id, modifier, (err) => {
+          completed++;
+          if (err) {
+            errors.push({ id, error: err });
+          } else {
+            modifiedCount++;
+          }
+
+          if (completed === ids.length) {
+            if (errors.length > 0) {
+              console.warn('Some updates failed:', errors);
+            }
+            callback(null, {
+              modifiedCount,
+              matchedCount: ids.length,
+              errors: errors.length > 0 ? errors : undefined,
+            });
+          }
+        });
+      });
+    } else {
+      // For other selectors, we can't easily implement without subscription
+      callback({
+        error: 500,
+        reason:
+          'updateMany fallback only supports _id.$in selectors. Please implement server method or use individual updates.',
+      });
     }
   }
 
@@ -318,6 +470,47 @@ export class Collection {
 
     forEach(helpers, (helper, key) => {
       this._helpers.prototype[key] = helper;
+    });
+  }
+
+  // Utility method to test what update methods are available for this collection
+  testAvailableMethods(callback = () => {}) {
+    const testMethods = [
+      `/${this._name}/update`,
+      `${this._name}.update`,
+      `update${this._name}`,
+      `/${this._name}/modify`,
+      `modify${this._name}`,
+      `updateMany${this._name}`,
+      `/${this._name}/updateMany`,
+    ];
+
+    console.log(`Testing available methods for collection: ${this._name}`);
+    const availableMethods = [];
+    let tested = 0;
+
+    testMethods.forEach((methodName) => {
+      call(methodName, { _id: 'test' }, { $set: { test: true } }, (err) => {
+        tested++;
+
+        if (err && err.error === 404) {
+          console.log(`❌ Method not available: ${methodName}`);
+        } else if (err && err.reason && err.reason.includes('not authorized')) {
+          console.log(`🔒 Method exists but requires auth: ${methodName}`);
+          availableMethods.push(methodName);
+        } else if (err) {
+          console.log(`⚠️  Method exists but errored: ${methodName} - ${err.reason}`);
+          availableMethods.push(methodName);
+        } else {
+          console.log(`✅ Method available: ${methodName}`);
+          availableMethods.push(methodName);
+        }
+
+        if (tested === testMethods.length) {
+          console.log(`Available methods for ${this._name}:`, availableMethods);
+          callback(availableMethods);
+        }
+      });
     });
   }
 }
