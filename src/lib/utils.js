@@ -10,7 +10,7 @@ export function uniqueId() {
 export function hashPassword(password) {
   return {
     digest: SHA256(password).toString(), // lgtm [js/insufficient-password-hash]
-    algorithm: 'sha-256'
+    algorithm: 'sha-256',
   };
 }
 
@@ -24,7 +24,7 @@ var hasOwn = class2type.hasOwnProperty;
 var support = {};
 
 // Populate the class2type map
-forEach('Boolean Number String Function Array Date RegExp Object Error'.split(' '), function(name, _i) {
+forEach('Boolean Number String Function Array Date RegExp Object Error'.split(' '), function (name, _i) {
   class2type['[object ' + name + ']'] = name.toLowerCase();
 });
 

@@ -19,7 +19,7 @@ const PUBLIC_EVENTS = [
   'result',
   'updated',
   // Error messages
-  'error'
+  'error',
 ];
 const DEFAULT_RECONNECT_INTERVAL = 10000;
 
@@ -54,7 +54,7 @@ export default class DDP extends EventEmitter {
       this.socket.send({
         msg: 'connect',
         version: DDP_VERSION,
-        support: [DDP_VERSION]
+        support: [DDP_VERSION],
       });
     });
 
@@ -107,7 +107,7 @@ export default class DDP extends EventEmitter {
       msg: 'method',
       id,
       method: name,
-      params
+      params,
     });
     return id;
   }
@@ -118,7 +118,7 @@ export default class DDP extends EventEmitter {
       msg: 'sub',
       id,
       name,
-      params
+      params,
     });
     return id;
   }
@@ -126,7 +126,7 @@ export default class DDP extends EventEmitter {
   unsub(id) {
     this.messageQueue.push({
       msg: 'unsub',
-      id
+      id,
     });
     return id;
   }

@@ -73,5 +73,5 @@ export default {
     } else {
       setTimeout(() => this.waitDdpConnected(cb), 10);
     }
-  }
+  },
 };

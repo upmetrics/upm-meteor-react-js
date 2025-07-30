@@ -32,6 +32,28 @@ export interface ICollection {
 
   update(selector: any, modifier: any, options?: any, callback?: () => any): void;
 
+  updateMany(
+    selector: any,
+    modifier: any,
+    options?: any,
+    callback?: (
+      err: any,
+      result?: {
+        modifiedCount: number;
+        matchedCount: number;
+      }
+    ) => void
+  ): void;
+
+  bulkUpdate(
+    updates: Array<{
+      selector: any;
+      modifier: any;
+    }>,
+    options?: any,
+    callback?: (err: any, results?: any[]) => void
+  ): void;
+
   remove(selector: any, callback?: () => any): void;
 }
 
@@ -68,7 +90,7 @@ export declare const Meteor: {
 
   Mongo: {
     Collection: {
-      new(collection: string): ICollection;
+      new (collection: string): ICollection;
     };
   };
   Random: {

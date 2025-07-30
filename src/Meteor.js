@@ -54,7 +54,7 @@ export const Meteor = {
   status() {
     return {
       connected: Data.ddp ? Data.ddp.status === 'connected' : false,
-      status: Data.ddp ? Data.ddp.status : 'disconnected'
+      status: Data.ddp ? Data.ddp.status : 'disconnected',
       // retryCount: 0
       // retryTime:
       // reason:
@@ -79,7 +79,7 @@ export const Meteor = {
   },
   packageInterface: () => {
     return {
-      localStorage
+      localStorage,
     };
   },
   connect(endpoint, options) {
@@ -103,7 +103,7 @@ export const Meteor = {
     this.ddp = Data.ddp = new DDP({
       endpoint,
       SocketConstructor: WebSocket,
-      ...options
+      ...options,
     });
 
     Data.ddp.on('connected', () => {
@@ -152,7 +152,7 @@ export const Meteor = {
       }
       const document = {
         _id: message.id,
-        ...message.fields
+        ...message.fields,
       };
 
       Data.db[message.collection].upsert(document);
@@ -200,11 +200,11 @@ export const Meteor = {
         const document = {
           _id: message.id,
           ...message.fields,
-          ...unset
+          ...unset,
         };
 
         const oldDocument = Data.db[message.collection].findOne({
-          _id: message.id
+          _id: message.id,
         });
 
         Data.db[message.collection].upsert(document);
@@ -219,7 +219,7 @@ export const Meteor = {
       }
       if (Data.db[message.collection]) {
         const oldDocument = Data.db[message.collection].findOne({
-          _id: message.id
+          _id: message.id,
         });
         Data.db[message.collection].del(message.id);
         runObservers('removed', message.collection, oldDocument);
@@ -352,7 +352,7 @@ export const Meteor = {
           if (callbacks.onStop) {
             callbacks.onStop();
           }
-        }
+        },
       };
     }
 
@@ -377,7 +377,7 @@ export const Meteor = {
         }
         return Data.subscriptions[id].error ?? null;
       },
-      subscriptionId: id
+      subscriptionId: id,
     };
 
     /* if (Tracker.active) {
@@ -406,7 +406,7 @@ export const Meteor = {
       });
     } */
     return handle;
-  }
+  },
 };
 
 export default Meteor;

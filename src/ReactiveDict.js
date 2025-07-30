@@ -2,14 +2,14 @@ import EJSON from 'ejson';
 
 import Data from './Data';
 
-const stringify = function(value) {
+const stringify = function (value) {
   if (value === undefined) {
     return 'undefined';
   }
   return EJSON.stringify(value);
 };
 
-const parse = function(serialized) {
+const parse = function (serialized) {
   if (serialized === undefined || serialized === 'undefined') {
     return undefined;
   }

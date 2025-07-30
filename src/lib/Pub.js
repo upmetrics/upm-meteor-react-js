@@ -19,7 +19,7 @@ function paramsForSub(params) {
 function findExistingSubscriptionId(name, params) {
   return findKey(Meteor.getData().subscriptions, {
     name,
-    params: EJSON.clone(paramsForSub(params))
+    params: EJSON.clone(paramsForSub(params)),
   });
 }
 

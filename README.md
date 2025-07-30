@@ -73,7 +73,50 @@ const [data, loading] = Meteor.usePublication({
 const { result, loading } = Meteor.useMethod('method.name', { id: _id });
 ```
 
+## Bulk Operations
 
+For scenarios where you need to update multiple documents without subscribing to each one individually, the package now
+supports bulk operations:
+
+### Collection.updateMany
+
+Updates multiple documents matching a selector without requiring local subscriptions:
+
+```javascript
+// Update multiple documents by selector
+BusinessSettingsCollection.updateMany(
+  { workspaceId: { $in: workspaceIds } }, // selector
+  { $set: { 'ai.hideAI': true } }, // modifier
+  (err, result) => {
+    if (err) {
+      console.error('Update failed:', err);
+    } else {
+      console.log(`Updated ${result.modifiedCount} documents`);
+    }
+  }
+);
+```
+
+### Collection.bulkUpdate
+
+Performs multiple different update operations in a single call:
+
+```javascript
+// Prepare array of update operations
+const updates = workspaces.map(workspace => ({
+  selector: { _id: workspace._id },
+  modifier: { $set: { 'ai.hideAI': hideAI } }
+}));
+
+// Execute bulk update
+BusinessSettingsCollection.bulkUpdate(updates, (err, results) => {
+  if (err) {
+    console.error('Bulk update failed:', err);
+  } else {
+    console.log('Bulk update completed:', results);
+  }
+});
+```
 
 npm run prepare
 

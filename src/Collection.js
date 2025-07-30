@@ -17,7 +17,7 @@ export const runObservers = (type, collection, newDocument, oldDocument) => {
           callbacks['removed'](newDocument);
         } else if (
           Data.db[collection].findOne({
-            $and: [{ _id: newDocument._id }, cursor._selector]
+            $and: [{ _id: newDocument._id }, cursor._selector],
           })
         ) {
           try {
@@ -120,8 +120,7 @@ export class Collection {
     return result;
   }
 
-  insert(item, callback = () => {
-  }) {
+  insert(item, callback = () => {}) {
     let id;
 
     if ('_id' in item) {
@@ -136,7 +135,7 @@ export class Collection {
     if (this._collection.get(id)) {
       return callback({
         error: 409,
-        reason: `Duplicate key _id with value ${id}`
+        reason: `Duplicate key _id with value ${id}`,
       });
     }
 
@@ -158,8 +157,7 @@ export class Collection {
     return id;
   }
 
-  update(id, modifier, options = {}, callback = () => {
-  }) {
+  update(id, modifier, options = {}, callback = () => {}) {
     if (typeof options === 'function') {
       callback = options;
     }
@@ -167,7 +165,7 @@ export class Collection {
     if (!this._collection.get(id)) {
       return callback({
         error: 409,
-        reason: `Item not found in collection ${this._name} with id ${id}`
+        reason: `Item not found in collection ${this._name} with id ${id}`,
       });
     }
 
@@ -187,8 +185,97 @@ export class Collection {
     }
   }
 
-  remove(id, callback = () => {
-  }) {
+  bulkUpdate(updates, options = {}, callback = () => {}) {
+    if (typeof options === 'function') {
+      callback = options;
+    }
+
+    // updates should be an array of { selector, modifier } objects
+    if (!Array.isArray(updates)) {
+      return callback({
+        error: 400,
+        reason: 'bulkUpdate expects an array of update operations',
+      });
+    }
+
+    // Optimistically update local collection for UI responsiveness
+    updates.forEach(({ selector, modifier }) => {
+      if (selector._id && modifier.$set) {
+        // Only update locally if we have an _id and $set operation
+        const existingDoc = this._collection.get(selector._id);
+        if (existingDoc) {
+          this._collection.upsert({ _id: selector._id, ...modifier.$set });
+        }
+      }
+    });
+
+    if (!this.localCollection) {
+      Data.waitDdpConnected(() => {
+        call(`/${this._name}/bulkUpdate`, updates, (err, result) => {
+          if (err) {
+            // Rollback optimistic updates on error
+            updates.forEach(({ selector, modifier }) => {
+              if (selector._id) {
+                // You might want to implement rollback logic here
+                // For now, we'll let the subscription system handle the correction
+              }
+            });
+            return callback(err);
+          }
+
+          callback(null, result);
+        });
+      });
+    } else {
+      // For local collections, process updates immediately
+      const results = updates.map(({ selector, modifier }) => {
+        if (selector._id) {
+          const doc = this._collection.get(selector._id);
+          if (doc && modifier.$set) {
+            this._collection.upsert({ ...doc, ...modifier.$set });
+            return { _id: selector._id, success: true };
+          }
+        }
+        return { selector, success: false, reason: 'Document not found or invalid modifier' };
+      });
+      callback(null, results);
+    }
+  }
+
+  updateMany(selector, modifier, options = {}, callback = () => {}) {
+    if (typeof options === 'function') {
+      callback = options;
+    }
+
+    // For updateMany, we'll use the server-side method directly
+    // This doesn't require local documents to exist
+    if (!this.localCollection) {
+      Data.waitDdpConnected(() => {
+        call(`/${this._name}/updateMany`, selector, modifier, (err, result) => {
+          if (err) {
+            return callback(err);
+          }
+
+          callback(null, result);
+        });
+      });
+    } else {
+      // For local collections, find matching documents and update them
+      const docs = this._collection.find(selector);
+      const updated = [];
+
+      docs.forEach((doc) => {
+        if (modifier.$set) {
+          this._collection.upsert({ ...doc, ...modifier.$set });
+          updated.push(doc._id);
+        }
+      });
+
+      callback(null, { modifiedCount: updated.length, matchedCount: docs.length });
+    }
+  }
+
+  remove(id, callback = () => {}) {
     const element = this.findOne(id);
 
     if (element) {
@@ -256,7 +343,7 @@ function wrapTransform(transform) {
     return transform;
   }
 
-  const wrapped = function(doc) {
+  const wrapped = function (doc) {
     if (!has(doc, '_id')) {
       // XXX do we ever have a transform on the oplog's collection? because that
       // collection has no _id.
@@ -265,7 +352,7 @@ function wrapTransform(transform) {
 
     const id = doc._id;
     // XXX consider making tracker a weak dependency and checking Package.tracker here
-    const transformed = Tracker.nonreactive(function() {
+    const transformed = Tracker.nonreactive(function () {
       return transform(doc);
     });
 
@@ -275,7 +362,7 @@ function wrapTransform(transform) {
 
     if (has(transformed, '_id')) {
       if (!EJSON.equals(transformed._id, id)) {
-        throw new Error('transformed document can\'t have different _id');
+        throw new Error("transformed document can't have different _id");
       }
     } else {
       transformed._id = id;

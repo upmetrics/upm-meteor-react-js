@@ -31,7 +31,7 @@ function subId(name, deps, refId) {
   return EJSON.stringify({ name, deps, refId });
 }
 
-export default function({ name, params = {}, userId, fetch = () => null }, dependencies) {
+export default function ({ name, params = {}, userId, fetch = () => null }, dependencies) {
   const allArgsSet = !Object.values(params).some((x) => x === undefined);
   const deps = dependencies || [userId ?? Meteor.userId(), ...depsFromValuesOf(params)];
   const ref = useRef(null);

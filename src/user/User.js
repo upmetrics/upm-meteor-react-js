@@ -58,7 +58,7 @@ const User = {
       'login',
       {
         user: selector,
-        password: hashPassword(password)
+        password: hashPassword(password),
       },
       (err, result) => {
         User._endLoggingIn();
@@ -69,8 +69,7 @@ const User = {
       }
     );
   },
-  logoutOtherClients(callback = () => {
-  }) {
+  logoutOtherClients(callback = () => {}) {
     Meteor.call('getNewToken', (err, res) => {
       if (err) {
         return callback(err);
@@ -141,7 +140,7 @@ const User = {
     } finally {
       User._loginWithToken(value);
     }
-  }
+  },
 };
 
 export default User;

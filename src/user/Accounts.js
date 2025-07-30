@@ -11,8 +11,7 @@ function info(msg) {
 class AccountsPassword {
   _hashPassword = hashPassword;
 
-  createUser = (options, callback = () => {
-  }) => {
+  createUser = (options, callback = () => {}) => {
     // Replace password with the hashed password.
     options.password = hashPassword(options.password);
 
@@ -25,8 +24,7 @@ class AccountsPassword {
     });
   };
 
-  changePassword = (oldPassword, newPassword, callback = () => {
-  }) => {
+  changePassword = (oldPassword, newPassword, callback = () => {}) => {
     // TODO check Meteor.user() to prevent if not logged
 
     if (typeof newPassword !== 'string' || !newPassword) {
@@ -38,8 +36,7 @@ class AccountsPassword {
     });
   };
 
-  forgotPassword = (options, callback = () => {
-  }) => {
+  forgotPassword = (options, callback = () => {}) => {
     if (!options.email) {
       return callback('Must pass options.email');
     }
@@ -49,8 +46,7 @@ class AccountsPassword {
     });
   };
 
-  resetPassword = (token, newPassword, callback = () => {
-  }) => {
+  resetPassword = (token, newPassword, callback = () => {}) => {
     if (!newPassword) {
       return callback('Must pass a new password');
     }

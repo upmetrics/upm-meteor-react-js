@@ -46,11 +46,10 @@ function _debugFunc() {
   return typeof Meteor !== 'undefined'
     ? Meteor._debug
     : typeof console !== 'undefined' && console.error
-      ? function() {
+    ? function () {
         console.error.apply(console, arguments);
       }
-      : function() {
-      };
+    : function () {};
 }
 
 function _maybeSuppressMoreLogs(messagesLength) {
@@ -97,9 +96,9 @@ function withNoYieldsAllowed(f) {
   if (typeof Meteor === 'undefined' || Meteor.isClient) {
     return f;
   } else {
-    return function() {
+    return function () {
       const args = arguments;
-      Meteor._noYieldsAllowed(function() {
+      Meteor._noYieldsAllowed(function () {
         f.apply(null, args);
       });
     };
@@ -435,10 +434,10 @@ Tracker.Dependency = class Dependency {
  * @summary Process all reactive updates immediately and ensure that all invalidated computations are rerun.
  * @locus Client
  */
-Tracker.flush = function(options) {
+Tracker.flush = function (options) {
   Tracker._runFlush({
     finishSynchronously: true,
-    throwFirstError: options && options._throwFirstError
+    throwFirstError: options && options._throwFirstError,
   });
 };
 
@@ -447,14 +446,14 @@ Tracker.flush = function(options) {
  * @locus Client
  * @returns {Boolean}
  */
-Tracker.inFlush = function() {
+Tracker.inFlush = function () {
   return inFlush;
 };
 
 // Run all pending computations and afterFlush callbacks.  If we were not called
 // directly via Tracker.flush, this may return before they're all done to allow
 // the event loop to run a little before continuing.
-Tracker._runFlush = function(options) {
+Tracker._runFlush = function (options) {
   // XXX What part of the comment below is still true? (We no longer
   // have Spark)
   //
@@ -466,9 +465,9 @@ Tracker._runFlush = function(options) {
   // any useful notion of a nested flush.
   //
   // https://app.asana.com/0/159908330244/385138233856
-  if (Tracker.inFlush()) throw new Error('Can\'t call Tracker.flush while flushing');
+  if (Tracker.inFlush()) throw new Error("Can't call Tracker.flush while flushing");
 
-  if (inCompute) throw new Error('Can\'t flush inside Tracker.autorun');
+  if (inCompute) throw new Error("Can't flush inside Tracker.autorun");
 
   options = options || {};
 
@@ -513,7 +512,7 @@ Tracker._runFlush = function(options) {
       // finish flushing
       Tracker._runFlush({
         finishSynchronously: options.finishSynchronously,
-        throwFirstError: false
+        throwFirstError: false,
       });
     }
     willFlush = false;
@@ -557,7 +556,7 @@ Tracker._runFlush = function(options) {
  * thrown. Defaults to the error being logged to the console.
  * @returns {Tracker.Computation}
  */
-Tracker.autorun = function(f, options) {
+Tracker.autorun = function (f, options) {
   if (typeof f !== 'function') {
     throw new Error('Tracker.autorun requires a function argument');
   }
@@ -565,7 +564,7 @@ Tracker.autorun = function(f, options) {
   constructingComputation = true;
   const c = new Tracker.Computation(f, Tracker.currentComputation, o.onError);
   if (Tracker.active) {
-    Tracker.onInvalidate(function() {
+    Tracker.onInvalidate(function () {
       c.stop();
     });
   }
@@ -584,7 +583,7 @@ Tracker.autorun = function(f, options) {
  * @locus Client
  * @param {Function} f A function to call immediately.
  */
-Tracker.nonreactive = function(f) {
+Tracker.nonreactive = function (f) {
   const previous = Tracker.currentComputation;
   setCurrentComputation(null);
   try {
@@ -601,7 +600,7 @@ Tracker.nonreactive = function(f) {
  * @locus Client
  * @param {Function} f A callback function that will be invoked as `func(c)`, where `c` is the computation on which the callback is registered.
  */
-Tracker.onInvalidate = function(f) {
+Tracker.onInvalidate = function (f) {
   if (!Tracker.active) throw new Error('Tracker.onInvalidate requires a currentComputation');
 
   Tracker.currentComputation.onInvalidate(f);
@@ -614,7 +613,7 @@ Tracker.onInvalidate = function(f) {
  * @locus Client
  * @param {Function} f A function to call at flush time.
  */
-Tracker.afterFlush = function(f) {
+Tracker.afterFlush = function (f) {
   afterFlushCallbacks.push(f);
   requireFlush();
 };

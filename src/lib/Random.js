@@ -7,5 +7,5 @@ module.exports = {
       res += UNMISTAKABLE_CHARS[Math.floor(Math.random() * UNMISTAKABLE_CHARS.length)];
     }
     return res;
-  }
+  },
 };
