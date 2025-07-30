@@ -95,7 +95,6 @@ export default class DDP extends EventEmitter {
         // Immediately attempt to establish authentication if we have a token
         const token = getAuthToken();
         if (token && !this.authEstablished) {
-          this.authEstablished = true;
           // Send a login method call to establish authentication
           const loginId = this.method('login', [{ resume: token }]);
           // Don't emit connected until after authentication attempt

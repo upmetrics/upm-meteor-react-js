@@ -249,13 +249,13 @@ export const Meteor = {
       if (isVerbose) {
         info(`Method result for id=${message.id}`);
       }
-      if (typeof c.callback === 'function') {
+      if (c && typeof c.callback === 'function') {
         c.callback(message.error, message.result);
       }
-      Data.calls.splice(
-        Data.calls.findIndex((x) => x.id === message.id),
-        1
-      );
+      const callIndex = Data.calls.findIndex((x) => x.id === message.id);
+      if (callIndex !== -1) {
+        Data.calls.splice(callIndex, 1);
+      }
     });
 
     Data.ddp.on('nosub', (message) => {
