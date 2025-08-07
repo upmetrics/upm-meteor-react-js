@@ -14,6 +14,7 @@ import usePublication from './components/usePublication';
 import useMethod from './components/useMethod';
 import Accounts from './user/Accounts.js';
 import ReactiveDict from './ReactiveDict';
+import FilesCollection from './FilesCollection';
 
 let isVerbose = false;
 
@@ -40,6 +41,7 @@ export const Meteor = {
   Random,
   Mongo,
   Tracker,
+  FilesCollection,
   EJSON,
   ReactiveDict,
   Accounts,
