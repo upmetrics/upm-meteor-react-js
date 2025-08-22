@@ -359,28 +359,6 @@ export const Meteor = {
     }
 
     // return a handle to the application.
-    const handle = {
-      stop() {
-        if (Data.subscriptions[id]) {
-          Data.subscriptions[id].stop();
-        }
-      },
-      ready() {
-        if (!Data.subscriptions[id]) {
-          return false;
-        }
-        const record = Data.subscriptions[id];
-        record.readyDeps.depend();
-        return record.ready;
-      },
-      error() {
-        if (!Data.subscriptions[id]) {
-          return null;
-        }
-        return Data.subscriptions[id].error ?? null;
-      },
-      subscriptionId: id,
-    };
 
     /* if (Tracker.active) {
       // We're in a reactive computation, so we'd like to unsubscribe when the
@@ -407,7 +385,37 @@ export const Meteor = {
         });
       });
     } */
-    return handle;
+    return {
+      stop() {
+        if (Data.subscriptions[id]) {
+          Data.subscriptions[id].stop();
+        }
+      },
+      ready() {
+        if (!Data.subscriptions[id]) {
+          return false;
+        }
+        const record = Data.subscriptions[id];
+        record.readyDeps.depend();
+        return record.ready;
+      },
+      error() {
+        if (!Data.subscriptions[id]) {
+          return null;
+        }
+        return Data.subscriptions[id].error ?? null;
+      },
+      subscriptionId: id,
+    };
+  },
+  getSubscriptions() {
+    return Data.subscriptions;
+  },
+  findSubscriptions(name, params) {
+    return Object.values(Data.subscriptions).filter((sub) => {
+      if (sub.name !== name) return false;
+      return params ? JSON.stringify(sub.params) === JSON.stringify([params]) : true;
+    });
   },
 };
 
