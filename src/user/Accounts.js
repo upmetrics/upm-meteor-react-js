@@ -9,6 +9,23 @@ function info(msg) {
 }
 
 class AccountsPassword {
+  /**
+   * Log in using a Meteor login token (e.g., from a previous session).
+   * @param {string} token - The Meteor login token
+   * @param {function} [callback] - Optional callback(err)
+   */
+  loginWithToken = (token, callback = () => {}) => {
+    if (!token) {
+      callback('Token is required');
+      return;
+    }
+    try {
+      User._loginWithToken(token);
+      callback();
+    } catch (err) {
+      callback(err);
+    }
+  };
   _hashPassword = hashPassword;
 
   createUser = (options, callback = () => {}) => {
